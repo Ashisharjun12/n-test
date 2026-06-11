@@ -1,0 +1,23 @@
+[
+  {
+    "id": "P001",
+    "name": "SXC Premium",
+    "description": "High-quality SXC product for industrial use",
+    "price": 200,
+    "unit": "BOX",
+    "hsn": "84719010",
+    "gst": 18,
+    "stock": 120
+  },
+  {
+    "id": "P002",
+    "name": "Sample Product",
+    "description": "Standard sample product for demonstration",
+    "price": 100,
+    "unit": "OTH",
+    "hsn": "84714910",
+    "gst": 12,
+    "stock": 50
+  }
+ 
+]

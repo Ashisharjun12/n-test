@@ -1,0 +1,52 @@
+[
+  {
+    "id": "B001",
+    "name": "Cash",
+    "type": "cash",
+    "accountNumber": "",
+    "ifsc": "",
+    "bankName": "",
+    "branch": "",
+    "upiId": ""
+  },
+  {
+    "id": "B002",
+    "name": "HDFC Business",
+    "type": "bank",
+    "accountNumber": "50200012345678",
+    "ifsc": "HDFC0001234",
+    "bankName": "HDFC Bank",
+    "branch": "Connaught Place, New Delhi",
+    "upiId": "business@hdfcbank"
+  },
+  {
+    "id": "B003",
+    "name": "SBI Savings",
+    "type": "bank",
+    "accountNumber": "32105678901234",
+    "ifsc": "SBIN0001765",
+    "bankName": "State Bank of India",
+    "branch": "MG Road, Bengaluru",
+    "upiId": "business@sbi"
+  },
+  {
+    "id": "B004",
+    "name": "ICICI Current",
+    "type": "bank",
+    "accountNumber": "007101523456",
+    "ifsc": "ICIC0000071",
+    "bankName": "ICICI Bank",
+    "branch": "Bandra Kurla Complex, Mumbai",
+    "upiId": "nero@icici"
+  },
+  {
+    "id": "B005",
+    "name": "Axis Business",
+    "type": "bank",
+    "accountNumber": "911020034567890",
+    "ifsc": "UTIB0000062",
+    "bankName": "Axis Bank",
+    "branch": "Sector 18, Noida",
+    "upiId": "nerobiz@axisbank"
+  }
+]

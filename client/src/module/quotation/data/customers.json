@@ -1,0 +1,50 @@
+[
+  {
+    "id": "C001",
+    "name": "Acme Corporation",
+    "phone": "9876543210",
+    "email": "contact@acmecorp.com",
+    "gstin": "27AABCU9603R1ZM",
+    "companyName": "Acme Corporation Pvt Ltd",
+    "billingAddress": {
+      "title": "Head Office",
+      "addressLine1": "101, Industrial Estate",
+      "addressLine2": "Near Railway Station",
+      "pincode": "400001",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "country": "India",
+      "notes": ""
+    },
+    "shippingAddress": null
+  },
+  {
+    "id": "C002",
+    "name": "TechStart Pvt Ltd",
+    "phone": "9123456780",
+    "email": "accounts@techstart.in",
+    "gstin": "29AADCT1234A1Z5",
+    "companyName": "TechStart Private Limited",
+    "billingAddress": {
+      "title": "Registered Office",
+      "addressLine1": "42, Tech Park, Whitefield",
+      "addressLine2": "Block B, Floor 3",
+      "pincode": "560066",
+      "city": "Bengaluru",
+      "state": "Karnataka",
+      "country": "India",
+      "notes": ""
+    },
+    "shippingAddress": {
+      "title": "Warehouse",
+      "addressLine1": "Plot 15, KIADB Industrial Area",
+      "addressLine2": "",
+      "pincode": "562149",
+      "city": "Tumkur",
+      "state": "Karnataka",
+      "country": "India",
+      "notes": "Contact Mr. Ravi before delivery"
+    }
+  }
+ 
+]
