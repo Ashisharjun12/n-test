@@ -1,8 +1,8 @@
 import api from "./api";
 
 export const productApi = {
-  getProducts: (companyId) => {
-    return api.get("/product", { params: { companyId } });
+  getProducts: (companyId, { page = 1, limit = 20, search = "" } = {}) => {
+    return api.get("/product", { params: { companyId, page, limit, search } });
   },
   getProductById: (id) => {
     return api.get(`/product/${id}`);

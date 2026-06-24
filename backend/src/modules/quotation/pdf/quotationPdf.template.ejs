@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #111; padding: 24px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1a56db; padding-bottom: 12px; margin-bottom: 16px; }
+    .logo { width: 70px; height: 70px; object-fit: contain; margin-right: 12px; }
+    .company-block { display: flex; flex: 1; }
+    .company-name { font-size: 18px; font-weight: bold; color: #111; margin-bottom: 4px; }
+    .company-meta { font-size: 10px; line-height: 1.5; color: #333; }
+    .doc-title { text-align: right; }
+    .doc-title h1 { font-size: 22px; color: #1a56db; letter-spacing: 1px; }
+    .doc-title p { font-size: 9px; color: #666; margin-top: 4px; }
+    .info-row { display: flex; justify-content: space-between; margin-bottom: 16px; }
+    .bill-to { flex: 1; }
+    .bill-to label { font-size: 9px; color: #666; text-transform: uppercase; }
+    .bill-to p { font-size: 13px; font-weight: bold; margin-top: 4px; }
+    .meta-box { text-align: right; font-size: 10px; line-height: 1.8; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    thead th { background: #1a56db; color: #fff; padding: 8px 6px; font-size: 10px; text-align: left; }
+    thead th.num { text-align: right; }
+    tbody td { padding: 8px 6px; border-bottom: 1px solid #e5e7eb; vertical-align: top; font-size: 10px; }
+    tbody td.num { text-align: right; font-family: monospace; }
+    .item-desc { font-size: 9px; color: #555; margin-top: 4px; white-space: pre-wrap; }
+    .table-footer { font-size: 10px; color: #333; margin-bottom: 12px; }
+    .totals-wrap { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+    .totals { width: 280px; font-size: 10px; }
+    .totals .row { display: flex; justify-content: space-between; padding: 4px 0; }
+    .totals .row.total { font-size: 14px; font-weight: bold; border-top: 2px solid #1a56db; padding-top: 8px; margin-top: 4px; }
+    .words { font-size: 10px; margin-bottom: 20px; padding: 8px; background: #f9fafb; border: 1px solid #e5e7eb; }
+    .bottom-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+    .qr-block img { width: 100px; height: 100px; }
+    .bank-block { flex: 1; font-size: 10px; line-height: 1.7; }
+    .sig-block { text-align: center; min-width: 140px; }
+    .sig-block img { max-width: 120px; max-height: 60px; object-fit: contain; }
+    .sig-block p { font-size: 10px; margin-top: 8px; }
+    .terms { font-size: 9px; line-height: 1.6; margin-top: 16px; border-top: 1px solid #e5e7eb; padding-top: 12px; }
+    .terms h3 { font-size: 11px; margin-bottom: 8px; }
+    .terms ol { padding-left: 16px; }
+    .terms li { margin-bottom: 4px; }
+    .page-footer { text-align: center; font-size: 9px; color: #888; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="company-block">
+      <% if (company.logo) { %><img class="logo" src="<%= company.logo %>" alt="Logo" /><% } %>
+      <div>
+        <div class="company-name"><%= company.name %></div>
+        <div class="company-meta">
+          <% if (company.gst) { %>GSTIN: <%= company.gst %><br /><% } %>
+          <% if (company.pan) { %>PAN: <%= company.pan %><br /><% } %>
+          <% if (company.address) { %><%= company.address %><br /><% } %>
+          <% if (company.phone) { %>Mobile: <%= company.phone %><% if (company.altPhone) { %>, <%= company.altPhone %><% } %><br /><% } %>
+          <% if (company.email) { %>Email: <%= company.email %><br /><% } %>
+          <% if (company.website) { %>Website: <%= company.website %><% } %>
+        </div>
+      </div>
+    </div>
+    <div class="doc-title">
+      <h1><%= docTitle %></h1>
+      <p>ORIGINAL FOR RECIPIENT</p>
+    </div>
+  </div>
+
+  <div class="info-row">
+    <div class="bill-to">
+      <label>Bill To</label>
+      <p><%= customer.name %></p>
+      <% if (customer.companyName) { %><p style="font-weight:normal;font-size:11px;"><%= customer.companyName %></p><% } %>
+      <% if (customer.address) { %><p style="font-weight:normal;font-size:10px;color:#555;"><%= customer.address %></p><% } %>
+    </div>
+    <div class="meta-box">
+      <div><strong><%= docTitle %> #:</strong> <%= quotation.quotationNo %></div>
+      <div><strong>Date:</strong> <%= quotation.documentDate %></div>
+      <% if (quotation.dueDate) { %><div><strong>Due Date:</strong> <%= quotation.dueDate %></div><% } %>
+      <% if (quotation.placeOfSupply) { %><div><strong>Place of Supply:</strong> <%= quotation.placeOfSupply %></div><% } %>
+      <% if (quotation.reference) { %><div><strong>Reference:</strong> <%= quotation.reference %></div><% } %>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:4%">#</th>
+        <th style="width:38%">Item</th>
+        <th style="width:10%">HSN/SAC</th>
+        <th class="num" style="width:14%">Basic Rate</th>
+        <th class="num" style="width:12%">Qty</th>
+        <th class="num" style="width:14%">Gross Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% items.forEach(function(item, i) { %>
+      <tr>
+        <td><%= i + 1 %></td>
+        <td>
+          <%= item.name %>
+          <% if (item.description) { %><div class="item-desc"><%= item.description %></div><% } %>
+        </td>
+        <td><%= item.hsn || '-' %></td>
+        <td class="num"><%= item.price %></td>
+        <td class="num"><%= item.qty %></td>
+        <td class="num"><%= item.gross %></td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+
+  <div class="table-footer">Total Items / Qty: <%= totalItems %> / <%= totalQty %></div>
+
+  <div class="totals-wrap">
+    <div class="totals">
+      <div class="row"><span>Taxable Amount</span><span>₹<%= totals.taxable %></span></div>
+      <% if (tax.cgstRate > 0) { %>
+      <div class="row"><span>CGST <%= tax.cgstRate %>%</span><span>₹<%= tax.cgst %></span></div>
+      <div class="row"><span>SGST <%= tax.sgstRate %>%</span><span>₹<%= tax.sgst %></span></div>
+      <% } %>
+      <% if (tax.igstRate > 0) { %>
+      <div class="row"><span>IGST <%= tax.igstRate %>%</span><span>₹<%= tax.igst %></span></div>
+      <% } %>
+      <% if (quotation.discount > 0) { %>
+      <div class="row"><span>Discount</span><span>-₹<%= quotation.discount %></span></div>
+      <% } %>
+      <% if (extraChargeLines && extraChargeLines.length) { %>
+      <% extraChargeLines.forEach(function(ch) { %>
+      <div class="row"><span><%= ch.label %></span><span>₹<%= ch.amount %></span></div>
+      <% }); %>
+      <% } %>
+      <div class="row total"><span>Total</span><span>₹<%= totals.grand %></span></div>
+    </div>
+  </div>
+
+  <div class="words"><strong>Total amount (in words):</strong> <%= amountWords %></div>
+
+  <div class="bottom-row">
+    <% if (qrDataUrl) { %>
+    <div class="qr-block">
+      <p style="font-size:10px;margin-bottom:4px;">Pay using UPI</p>
+      <img src="<%= qrDataUrl %>" alt="UPI QR" />
+    </div>
+    <% } %>
+    <% if (bank) { %>
+    <div class="bank-block">
+      <strong>Bank Details</strong><br />
+      Bank: <%= bank.bankName %><br />
+      A/C: <%= bank.accountNumber %><br />
+      IFSC: <%= bank.ifsc %><br />
+      Branch: <%= bank.branch %>
+      <% if (bank.upi) { %><br />UPI: <%= bank.upi %><% } %>
+    </div>
+    <% } %>
+    <div class="sig-block">
+      <p>For <%= company.name %></p>
+      <% if (signature && signature.url) { %>
+      <img src="<%= signature.url %>" alt="Signature" />
+      <% } else { %>
+      <div style="height:50px;"></div>
+      <% } %>
+      <p><strong>Authorized Signatory</strong></p>
+      <% if (signature && signature.name) { %><p><%= signature.name %></p><% } %>
+    </div>
+  </div>
+
+  <% if (quotation.notes) { %>
+  <div class="terms"><h3>Notes</h3><p><%= quotation.notes %></p></div>
+  <% } %>
+
+  <% if (termsList && termsList.length) { %>
+  <div class="terms">
+    <h3>Terms and Conditions</h3>
+    <ol>
+      <% termsList.forEach(function(t) { %><li><%= t %></li><% }); %>
+    </ol>
+  </div>
+  <% } %>
+
+  <div class="page-footer">Page 1 / 1 • This is a computer generated document.</div>
+</body>
+</html>

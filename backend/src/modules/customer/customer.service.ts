@@ -1,5 +1,5 @@
 import { ApiError } from "../../shared/errors/apiError.js";
-import { CreateCustomerDto, ICustomerRepository, ICustomerService, UpdateCustomerDto } from "./customer.interface.js";
+import { CreateCustomerDto, FindAllParams, ICustomerRepository, ICustomerService, PaginatedResult, UpdateCustomerDto } from "./customer.interface.js";
 import { ICustomer } from "./customer.schema.js";
 
 export class CustomerService implements ICustomerService {
@@ -9,9 +9,8 @@ export class CustomerService implements ICustomerService {
     return this.customerRepo.create(data);
   }
 
-  // get all customers of a company
-  async findAll(companyId: string): Promise<ICustomer[]> {
-    return this.customerRepo.findAll(companyId);
+  async findAll(companyId: string, params?: FindAllParams): Promise<PaginatedResult<ICustomer>> {
+    return this.customerRepo.findAll(companyId, params);
   }
 
   async findById(id: string): Promise<ICustomer | null> {

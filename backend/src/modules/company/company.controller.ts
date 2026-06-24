@@ -42,4 +42,19 @@ export class CompanyController {
     await this.companyService.delete(id);
     res.status(200).json(new ApiResponse(200, null, "Company deleted successfully."));
   });
+
+  // POST /api/v1/company/:id/signatures
+  addSignature = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const signature = await this.companyService.addSignature(id, req.body);
+    res.status(201).json(new ApiResponse(201, signature, "Signature added successfully."));
+  });
+
+  // PATCH /api/v1/company/:id/signatures/:signatureId/default
+  setDefaultSignature = asyncHandler(async (req: Request, res: Response) => {
+    const companyId = req.params.id as string;
+    const signatureId = req.params.signatureId as string;
+    await this.companyService.setDefaultSignature(companyId, signatureId);
+    res.status(200).json(new ApiResponse(200, null, "Default signature updated."));
+  });
 }

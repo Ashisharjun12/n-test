@@ -24,6 +24,18 @@ export const updateCompany = async (id, payload) => {
   return data.data
 }
 
+// POST /api/v1/company/:id/signatures
+export const addCompanySignature = async (companyId, payload) => {
+  const { data } = await api.post(`/company/${companyId}/signatures`, payload)
+  return data.data
+}
+
+// PATCH /api/v1/company/:id/signatures/:signatureId/default
+export const setDefaultCompanySignature = async (companyId, signatureId) => {
+  const { data } = await api.patch(`/company/${companyId}/signatures/${signatureId}/default`)
+  return data.data
+}
+
 // DELETE /api/v1/company/:id
 export const deleteCompany = async (id) => {
   const { data } = await api.delete(`/company/${id}`)

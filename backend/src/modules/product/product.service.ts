@@ -1,11 +1,10 @@
 import { ApiError } from "../../shared/errors/apiError.js";
-import { CreateProductDto, IProductRepository, IProductService, UpdateProductDto, UpdateProductSettingsDto } from "./product.interface.js";
+import { CreateProductDto, FindAllParams, IProductRepository, IProductService, PaginatedResult, UpdateProductDto, UpdateProductSettingsDto } from "./product.interface.js";
 import { IProduct } from "./product.schema.js";
 
 export class ProductService implements IProductService {
   constructor(private readonly productRepo: IProductRepository) {}
 
-  //create product 
   async create(data: CreateProductDto): Promise<IProduct> {
     if (data.openingStock?.quantity !== undefined && data.currentStock === undefined) {
       data.currentStock = data.openingStock.quantity;
@@ -13,9 +12,8 @@ export class ProductService implements IProductService {
     return this.productRepo.create(data);
   }
 
-  //get all products
-  async findAll(companyId: string): Promise<IProduct[]> {
-    return this.productRepo.findAll(companyId);
+  async findAll(companyId: string, params?: FindAllParams): Promise<PaginatedResult<IProduct>> {
+    return this.productRepo.findAll(companyId, params);
   }
 
   //get product by id

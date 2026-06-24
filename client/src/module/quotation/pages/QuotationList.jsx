@@ -1,20 +1,33 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   Plus, Clock, CheckCircle2, XCircle, Receipt,
-  TrendingUp, IndianRupee, Send, MoreHorizontal, Pencil, Trash2, ArrowLeft,
+  Send, MoreHorizontal, Pencil, Trash2, ArrowLeft, Loader2, Download, Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ProfileMenu from "@/components/shared/ProfileMenu";
+import { quotationApi } from "../../../api/quotation.api";
+import useCompanyStore from "../../../store/company.store";
 
-const INITIAL_QUOTATIONS = [
-  { id: "Q001", number: "EST-1", date: "01 Jun 2026", customer: "Acme Corporation",  amount: 24500, status: "draft",    items: 3 },
-  { id: "Q002", number: "EST-2", date: "04 Jun 2026", customer: "TechStart Pvt Ltd", amount: 87200, status: "sent",     items: 5 },
-  { id: "Q003", number: "EST-3", date: "03 Jun 2026", customer: "Raj Enterprises",   amount: 12000, status: "accepted", items: 2 },
-  { id: "Q004", number: "EST-4", date: "02 Jun 2026", customer: "Global Traders",    amount: 56700, status: "declined", items: 4 },
-  { id: "Q005", number: "EST-5", date: "05 Jun 2026", customer: "Sharma & Sons",     amount: 9800,  status: "draft",    items: 1 },
-];
+const mapStatus = (status) => {
+  if (status === "DRAFT") return "draft";
+  if (status === "CREATED") return "sent";
+  return "draft";
+};
+
+const mapQuotation = (q) => ({
+  id: q._id,
+  number: q.quotationNo || "—",
+  date: q.createdAt
+    ? new Date(q.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+    : "—",
+  customer: q.customer?.name || "Unknown",
+  amount: q.totalAmount || 0,
+  status: mapStatus(q.status),
+  items: q.items?.length || 0,
+  rawStatus: q.status,
+});
 
 const STATUS_CFG = {
   draft:    { label: "Draft",    Icon: Clock,        bg: "#eef0f3", fg: "#5b616e" },
@@ -40,7 +53,7 @@ function StatusBadge({ status, size = "sm" }) {
   );
 }
 
-function StatusSheet({ open, onClose, quotation, onStatusChange, onDelete }) {
+function StatusSheet({ open, onClose, quotation, onStatusChange, onDelete, onDownloadPdf }) {
   if (!quotation) return null;
   return (
     <Sheet open={open} onOpenChange={onClose}>
@@ -75,7 +88,34 @@ function StatusSheet({ open, onClose, quotation, onStatusChange, onDelete }) {
           </div>
         </div>
         <div className="px-5 pb-8 pt-3 flex flex-col gap-1" style={{ borderTop: "1px solid #dee1e6" }}>
-          <Link to={`/quotation/${quotation.id}`} onClick={onClose}>
+          <Link to={`/quotation/${quotation.id}/preview`} onClick={onClose}>
+            <button
+              type="button"
+              className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 rounded-[12px] text-[14px] font-medium transition-colors"
+              style={{ color: "#0a0b0d" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f7f7f7")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <div className="size-8 rounded-full flex items-center justify-center" style={{ background: "#eef0f3" }}>
+                <Eye className="size-3.5" style={{ color: "#0052ff" }} />
+              </div>
+              Preview
+            </button>
+          </Link>
+          <button
+            type="button"
+            onClick={() => { onDownloadPdf(quotation); onClose(); }}
+            className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 rounded-[12px] text-[14px] font-medium transition-colors"
+            style={{ color: "#0a0b0d" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#f7f7f7")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            <div className="size-8 rounded-full flex items-center justify-center" style={{ background: "#eef0f3" }}>
+              <Download className="size-3.5" style={{ color: "#0052ff" }} />
+            </div>
+            Download PDF
+          </button>
+          <Link to={`/quotation/${quotation.id}/edit`} onClick={onClose}>
             <button className="cursor-pointer w-full flex items-center gap-3 px-4 py-3 rounded-[12px] text-[14px] font-medium transition-colors" style={{ color: "#0a0b0d" }}
               onMouseEnter={e => e.currentTarget.style.background="#f7f7f7"} onMouseLeave={e => e.currentTarget.style.background="transparent"}>
               <div className="size-8 rounded-full flex items-center justify-center" style={{ background: "#eef0f3" }}><Pencil className="size-3.5" style={{ color: "#5b616e" }} /></div>
@@ -96,16 +136,60 @@ function StatusSheet({ open, onClose, quotation, onStatusChange, onDelete }) {
 
 export default function QuotationList() {
   const [filter, setFilter]         = useState("all");
-  const [quotations, setQuotations] = useState(INITIAL_QUOTATIONS);
+  const [quotations, setQuotations] = useState([]);
   const [activeQ, setActiveQ]       = useState(null);
   const [showStatus, setShowStatus] = useState(false);
+  const [loading, setLoading]       = useState(true);
+  const companyId = useCompanyStore((s) => s.activeCompany?._id);
 
-  const filtered      = filter === "all" ? quotations : quotations.filter(q => q.status === filter);
-  const totalRevenue  = quotations.reduce((s, q) => s + q.amount, 0);
-  const acceptedCount = quotations.filter(q => q.status === "accepted").length;
+  useEffect(() => {
+    if (!companyId) return;
+    setLoading(true);
+    quotationApi
+      .getQuotations(companyId)
+      .then((res) => setQuotations((res.data?.data || []).map(mapQuotation)))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [companyId]);
 
-  const changeStatus = (id, st) => setQuotations(qs => qs.map(q => q.id === id ? { ...q, status: st } : q));
-  const deleteQ      = (id)     => setQuotations(qs => qs.filter(q => q.id !== id));
+  const filtered = filter === "all" ? quotations : quotations.filter(q => q.status === filter);
+
+  const changeStatus = async (id, st) => {
+    const apiStatus = st === "draft" ? "DRAFT" : "CREATED";
+    try {
+      await quotationApi.updateQuotation(id, { status: apiStatus });
+      setQuotations((qs) => qs.map((q) => (q.id === id ? { ...q, status: st, rawStatus: apiStatus } : q)));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update status");
+    }
+  };
+
+  const deleteQ = async (id) => {
+    try {
+      await quotationApi.deleteQuotation(id);
+      setQuotations((qs) => qs.filter((q) => q.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete quotation");
+    }
+  };
+
+  const downloadPdf = async (quotation) => {
+    try {
+      const res = await quotationApi.downloadPdf(quotation.id);
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${quotation.number.replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Failed to download PDF");
+    }
+  };
 
   return (
     <div className="min-h-screen" style={{ background: "#ffffff", fontFamily: "Inter, sans-serif" }}>
@@ -159,7 +243,12 @@ export default function QuotationList() {
 
         {/* Cards */}
         <div className="flex flex-col gap-3">
-          {filtered.map(q => {
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-2">
+              <Loader2 className="size-6 animate-spin text-[#0052ff]" />
+              <p className="text-[13px] text-[#7c828a]">Loading quotations...</p>
+            </div>
+          ) : filtered.map(q => {
             const { Icon } = STATUS_CFG[q.status];
             return (
               <div key={q.id} className="flex items-start gap-4 p-5 rounded-[24px] bg-white transition-all"
@@ -215,10 +304,10 @@ export default function QuotationList() {
         <div className="h-4" />
       </div>
 
-      <StatusSheet open={showStatus} onClose={() => setShowStatus(false)} quotation={activeQ} onStatusChange={changeStatus} onDelete={deleteQ} />
+      <StatusSheet open={showStatus} onClose={() => setShowStatus(false)} quotation={activeQ} onStatusChange={changeStatus} onDelete={deleteQ} onDownloadPdf={downloadPdf} />
 
       {/* ── Paytm-style floating FAB — mobile only ── */}
-      <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+      <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pb-[env(safe-area-inset-bottom)]">
         <Link to="/quotation/create">
           <button
             className="cursor-pointer inline-flex items-center gap-2.5 px-7 text-[15px] font-semibold text-white active:scale-[0.97] transition-transform"

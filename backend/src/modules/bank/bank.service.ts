@@ -6,14 +6,20 @@ export class BankService implements IBankService {
   constructor(private readonly bankRepo: IBankRepository) {}
 
   async create(data: CreateBankDto): Promise<IBank> {
-    // check duplicate account number
-    const existing = await this.bankRepo.findByAccountNumber(data.accountNumber);
+    const existing = await this.bankRepo.findByAccountNumber(data.accountNumber, data.companyId);
     if (existing) throw ApiError.conflict("A bank account with this account number already exists.");
 
-    // if first bank for this company, auto-set as default
     const banks = await this.bankRepo.findAll(data.companyId);
-    if (banks.length === 0) data.isDefault = true;
-    return this.bankRepo.create(data);
+    const shouldBeDefault = data.isDefault === true || banks.length === 0;
+
+    const bank = await this.bankRepo.create({ ...data, isDefault: shouldBeDefault && data.isDefault !== false });
+
+    if (shouldBeDefault) {
+      await this.bankRepo.setDefault(String(bank._id), data.companyId);
+      return (await this.bankRepo.findById(String(bank._id)))!;
+    }
+
+    return bank;
   }
 
   async findAll(companyId: string): Promise<IBank[]> {
@@ -27,7 +33,20 @@ export class BankService implements IBankService {
   async update(id: string, data: UpdateBankDto): Promise<IBank | null> {
     const bank = await this.bankRepo.findById(id);
     if (!bank) throw ApiError.notFound("Bank not found.");
-    return this.bankRepo.update(id, data);
+
+    if (data.accountNumber && data.accountNumber !== bank.accountNumber) {
+      const existing = await this.bankRepo.findByAccountNumber(data.accountNumber, String(bank.companyId));
+      if (existing && String(existing._id) !== id) {
+        throw ApiError.conflict("A bank account with this account number already exists.");
+      }
+    }
+
+    const updated = await this.bankRepo.update(id, data);
+    if (data.isDefault === true) {
+      await this.bankRepo.setDefault(id, String(bank.companyId));
+      return this.bankRepo.findById(id);
+    }
+    return updated;
   }
 
   async setDefault(id: string, companyId: string): Promise<void> {

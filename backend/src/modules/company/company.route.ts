@@ -13,6 +13,8 @@ router.get("/", companyController.getAll);
 router.get("/:id", companyController.getById);
 router.post("/", companyController.createCompany);
 router.patch("/:id", companyController.updateCompany);
+router.post("/:id/signatures", companyController.addSignature);
+router.patch("/:id/signatures/:signatureId/default", companyController.setDefaultSignature);
 router.delete("/:id", companyController.deleteCompany);
 
 export default router;

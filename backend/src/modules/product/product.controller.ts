@@ -7,12 +7,15 @@ import { IProductService } from "./product.interface.js";
 export class ProductController {
   constructor(private readonly productService: IProductService) {}
 
-  // GET /api/v1/product?companyId=xxx
+  // GET /api/v1/product?companyId=xxx&page=1&limit=20&search=term
   getAll = asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.query.companyId as string;
     if (!companyId) throw ApiError.badRequest("companyId query param is required.");
-    const products = await this.productService.findAll(companyId);
-    res.status(200).json(new ApiResponse(200, products, "Products fetched successfully."));
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const search = (req.query.search as string) || "";
+    const result = await this.productService.findAll(companyId, { page, limit, search });
+    res.status(200).json(new ApiResponse(200, result, "Products fetched successfully."));
   });
 
   // GET /api/v1/product/:id

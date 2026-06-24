@@ -8,9 +8,9 @@ const bankSchema = new Schema(
       ref: "Company",
       required: true,
     },
-    ifsc: { type: String, trim: true, required: true },
+    ifsc: { type: String, trim: true },
     bankName: { type: String, trim: true, required: true },
-    accountNumber: { type: String, trim: true, required: true, unique: true },
+    accountNumber: { type: String, trim: true, required: true },
     branch: { type: String, trim: true, required: true },
     upi: { type: String, trim: true },
     openingBalance: { type: Number, default: 0 },
@@ -21,11 +21,13 @@ const bankSchema = new Schema(
   { timestamps: true }
 );
 
+bankSchema.index({ companyId: 1, accountNumber: 1 }, { unique: true });
+
 // types
 export type IBank = Document & {
   _id: Types.ObjectId;
   companyId: Types.ObjectId;
-  ifsc: string;
+  ifsc?: string;
   bankName: string;
   accountNumber: string;
   branch: string;

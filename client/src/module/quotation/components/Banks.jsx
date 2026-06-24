@@ -1,109 +1,170 @@
-import { useState } from "react";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
-import banksData from "../data/banks.json";
-import { Landmark, Banknote, CheckCircle2, CreditCard, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useState, useEffect, useCallback } from "react";
+import { Landmark, Banknote, Loader2, Plus } from "lucide-react";
+import BottomSheetModal from "@/components/ui/bottom-sheet-modal";
+import BankForm from "@/module/bank/components/BankForm";
+import { bankApi } from "@/api/bank.api";
+import useCompanyStore from "@/store/company.store";
 
-const bankIcon = (type) => {
-  if (type === "cash") return <Banknote className="size-4" style={{ color: "#05b169" }} />;
-  return <Landmark className="size-4" style={{ color: "#0052ff" }} />;
-};
+export const CASH_OPTION = { id: "cash", type: "cash", name: "Cash", paymentMethod: "cash" };
 
-export default function Banks({ selectedBank, onSelect }) {
-  const [open, setOpen] = useState(false);
-  const current = selectedBank || banksData[0];
+const RadioCircle = ({ selected }) => (
+  <div
+    className="size-5 rounded-full flex items-center justify-center shrink-0"
+    style={{ border: `2px solid ${selected ? "#0052ff" : "#dee1e6"}` }}
+  >
+    {selected && <div className="size-2.5 rounded-full bg-[#0052ff]" />}
+  </div>
+);
+
+export function BankRow({ selectedBank, onClick }) {
+  const current = selectedBank || CASH_OPTION;
+  const label = current.name || current.bankName || "Cash";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="cursor-pointer w-full flex items-center gap-3 px-4 py-3.5 transition-colors text-left hover:bg-[#f7f7f7]"
+    >
+      <div className="size-8 rounded-full flex items-center justify-center shrink-0 bg-[#eef0f3]">
+        {current.type === "bank" || current.paymentMethod === "bank" ? (
+          <Landmark className="size-4 text-[#0052ff]" />
+        ) : (
+          <Banknote className="size-4 text-[#05b169]" />
+        )}
+      </div>
+      <div className="flex-1 text-left min-w-0">
+        <p className="text-[12px] font-medium text-[#5b616e]">Bank</p>
+        <p className="text-[14px] font-semibold text-[#0a0b0d] truncate">{label}</p>
+      </div>
+      <span className="text-[13px] font-semibold text-[#0052ff] shrink-0">Change</span>
+    </button>
+  );
+}
+
+export function BankSelectSheet({ open, onClose, selectedBank, onSelect }) {
+  const [formOpen, setFormOpen] = useState(false);
+  const [banks, setBanks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const companyId = useCompanyStore((s) => s.activeCompany?._id);
+  const current = selectedBank || CASH_OPTION;
+
+  const loadBanks = useCallback(() => {
+    if (!companyId) return Promise.resolve();
+    setLoading(true);
+    return bankApi
+      .getBanks(companyId)
+      .then((res) => {
+        const list = res.data?.data || [];
+        list.sort((a, b) => Number(b.isDefault) - Number(a.isDefault));
+        setBanks(list);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [companyId]);
+
+  useEffect(() => {
+    if (!open || !companyId) return;
+    loadBanks();
+  }, [open, companyId, loadBanks]);
+
+  const options = [
+    CASH_OPTION,
+    ...banks.map((b) => ({ ...b, type: "bank", paymentMethod: "bank", name: b.bankName })),
+  ];
 
   const handleSelect = (bank) => {
     onSelect(bank);
-    setOpen(false);
+    onClose();
+  };
+
+  const handleSaved = (saved) => {
+    loadBanks();
+    if (saved) {
+      onSelect({ ...saved, type: "bank", paymentMethod: "bank", name: saved.bankName });
+      onClose();
+    }
   };
 
   return (
     <>
-      {/* Inline Bank Row — inside CreateQuotation optional section */}
-      <div className="flex items-center justify-between py-2 rounded-[16px]">
-        <div className="flex items-center gap-3">
-          <div className="size-8 rounded-full flex items-center justify-center" style={{ background: "#eef0f3" }}>
-            {bankIcon(current.type)}
-          </div>
-          <div>
-            <p className="text-[12px] font-medium" style={{ color: "#5b616e" }}>Bank</p>
-            <p className="text-[14px] font-semibold" style={{ color: "#0a0b0d" }}>{current.name}</p>
-            {current.type === "bank" && (
-              <p className="text-[12px] font-medium" style={{ color: "#7c828a", fontFamily: "'JetBrains Mono', monospace" }}>
-                ••••{current.accountNumber.slice(-4)}
-              </p>
-            )}
-          </div>
-        </div>
-        <button className="cursor-pointer text-[13px] font-semibold transition-colors" style={{ color: "#0052ff" }} onClick={() => setOpen(true)}>
-          Change
+      <BottomSheetModal
+        open={open}
+        title="Select Bank"
+        onClose={onClose}
+        size="default"
+        maxWidth="max-w-lg"
+        bodyClassName="px-5 py-4 flex flex-col gap-2 !bg-white"
+      >
+        <button
+          type="button"
+          onClick={() => setFormOpen(true)}
+          className="cursor-pointer flex items-center gap-1.5 text-[14px] font-semibold text-[#0052ff] py-1 mb-1 self-start"
+        >
+          <Plus className="size-4" /> Add New Bank
         </button>
-      </div>
 
-      {/* Sheet for selecting bank */}
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="bottom" className="rounded-t-[24px] max-h-[75vh] overflow-y-auto p-0 border-0" style={{ background: "#ffffff", boxShadow: "0 -4px 32px rgba(0,0,0,0.08)" }}>
-          <div className="flex justify-center pt-3 pb-1">
-            <div className="w-10 h-1 rounded-full" style={{ background: "#dee1e6" }} />
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="size-6 animate-spin text-[#0052ff]" />
           </div>
-          <div className="px-5 pt-2 pb-4" style={{ borderBottom: "1px solid #dee1e6" }}>
-            <h2 className="text-[16px] font-semibold" style={{ color: "#0a0b0d" }}>Select Payment Method</h2>
-          </div>
+        ) : (
+          options.map((bank) => {
+            const key = bank._id || bank.id;
+            const isSelected = (current._id || current.id) === key;
+            const isBank = bank.type === "bank";
 
-          <div className="px-5 py-4 flex flex-col gap-2">
-            {banksData.map((bank) => {
-              const isSelected = current.id === bank.id;
-              return (
-                <button
-                  key={bank.id}
-                  onClick={() => handleSelect(bank)}
-                  className="flex items-center justify-between w-full p-3.5 rounded-[16px] transition-all text-left cursor-pointer"
-                  style={{ border: `1px solid ${isSelected ? "#0052ff44" : "#dee1e6"}`, background: isSelected ? "#0052ff08" : "#ffffff" }}
-                  onMouseEnter={e => !isSelected && (e.currentTarget.style.background = "#f7f7f7")}
-                  onMouseLeave={e => !isSelected && (e.currentTarget.style.background = "#ffffff")}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-full flex items-center justify-center" style={{ background: "#eef0f3" }}>
-                      {bankIcon(bank.type)}
-                    </div>
-                    <div>
-                      <p className="text-[14px] font-medium" style={{ color: "#0a0b0d" }}>{bank.name}</p>
-                      {bank.type === "bank" ? (
-                        <p className="text-[12px]" style={{ color: "#5b616e" }}>
-                          {bank.bankName} · <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>••••{bank.accountNumber.slice(-4)}</span>
-                        </p>
-                      ) : (
-                        <p className="text-[12px]" style={{ color: "#5b616e" }}>Default payment method</p>
-                      )}
-                      {bank.upiId && (
-                        <p className="text-[12px] flex items-center gap-1 mt-0.5" style={{ color: "#5b616e" }}>
-                          <CreditCard className="size-3" />
-                          {bank.upiId}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  {isSelected ? (
-                    <CheckCircle2 className="size-5 shrink-0" style={{ color: "#0052ff" }} />
-                  ) : (
-                    <ChevronRight className="size-4 shrink-0" style={{ color: "#a8acb3" }} />
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handleSelect(bank)}
+                className="cursor-pointer flex items-center gap-3 w-full p-4 rounded-[16px] text-left transition-all"
+                style={{
+                  border: `1px solid ${isSelected ? "#0052ff44" : "#dee1e6"}`,
+                  background: isSelected ? "#0052ff08" : "#ffffff",
+                }}
+              >
+                <RadioCircle selected={isSelected} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-medium text-[#0a0b0d]">{bank.name || bank.bankName}</p>
+                  {isBank && (
+                    <p className="text-[12px] text-[#7c828a] mt-0.5 truncate">
+                      {[bank.branch, bank.accountNumber ? `••••${String(bank.accountNumber).slice(-4)}` : null]
+                        .filter(Boolean)
+                        .join(" · ")}
+                      {bank.isDefault ? " · Default" : ""}
+                    </p>
                   )}
-                </button>
-              );
-            })}
+                </div>
+              </button>
+            );
+          })
+        )}
+      </BottomSheetModal>
 
-            {/* Add New Bank */}
-            <button className="w-full mt-2 flex items-center justify-center gap-2 p-3.5 rounded-[16px] transition-all cursor-pointer"
-              style={{ border: "1px dashed #dee1e6", background: "#ffffff", color: "#5b616e" }}
-              onMouseEnter={e => e.currentTarget.style.background = "#f7f7f7"}
-              onMouseLeave={e => e.currentTarget.style.background = "#ffffff"}>
-              <Landmark className="size-4" />
-              <span className="text-[14px] font-medium">Add New Bank Account</span>
-            </button>
-          </div>
-        </SheetContent>
-      </Sheet>
+      <BankForm
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        companyId={companyId}
+        onSaved={handleSaved}
+      />
+    </>
+  );
+}
+
+export default function Banks({ selectedBank, onSelect }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <BankRow selectedBank={selectedBank} onClick={() => setOpen(true)} />
+      <BankSelectSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        selectedBank={selectedBank}
+        onSelect={onSelect}
+      />
     </>
   );
 }

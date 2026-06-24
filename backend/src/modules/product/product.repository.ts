@@ -1,5 +1,5 @@
 import { Product, ProductSettings, IProduct } from "./product.schema.js";
-import { CreateProductDto, IProductRepository, UpdateProductDto, UpdateProductSettingsDto } from "./product.interface.js";
+import { CreateProductDto, FindAllParams, IProductRepository, PaginatedResult, UpdateProductDto, UpdateProductSettingsDto } from "./product.interface.js";
 
 export class ProductRepository implements IProductRepository {
 
@@ -8,10 +8,27 @@ export class ProductRepository implements IProductRepository {
     return product.save();
   }
 
-  async findAll(companyId: string): Promise<IProduct[]> {
-    return Product.find({ companyId })
-      .populate("categoryId", "name")   // populate category name
-      .lean<IProduct[]>();
+  async findAll(companyId: string, params: FindAllParams = {}): Promise<PaginatedResult<IProduct>> {
+    const page = Math.max(1, params.page ?? 1);
+    const limit = Math.min(100, Math.max(1, params.limit ?? 20));
+    const skip = (page - 1) * limit;
+
+    const filter: Record<string, unknown> = { companyId };
+    if (params.search?.trim()) {
+      filter.name = { $regex: params.search.trim(), $options: "i" };
+    }
+
+    const [items, total] = await Promise.all([
+      Product.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("categoryId", "name")
+        .lean<IProduct[]>(),
+      Product.countDocuments(filter),
+    ]);
+
+    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findById(id: string): Promise<IProduct | null> {

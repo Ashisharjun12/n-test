@@ -3,6 +3,7 @@ import { config } from "dotenv";
 config();
  const {
   PORT,
+  CLIENT_ORIGIN,
   REDIS_URI,
   MONGODB_URI,
   NODE_ENV,
@@ -26,6 +27,7 @@ R2_PUBLIC_URL
 
 export const _config = {
   PORT,
+  CLIENT_ORIGIN,
   REDIS_URI,
   MONGODB_URI,
   NODE_ENV,

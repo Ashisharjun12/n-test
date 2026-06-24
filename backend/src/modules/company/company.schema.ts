@@ -16,6 +16,14 @@ const signatureSchema = new Schema({
   withStamp: { type: Boolean },
 });
 
+const companySignatureSchema = new Schema({
+  url: { type: String, required: true },
+  name: { type: String, required: true },
+  withStamp: { type: Boolean, default: false },
+  isDefault: { type: Boolean, default: false },
+  uploadId: { type: Schema.Types.ObjectId, ref: "Upload" },
+});
+
 // company schema
 const companySchema = new Schema(
   {
@@ -31,11 +39,15 @@ const companySchema = new Schema(
     tradeName: { type: String },
     logo: { type: String },
     signature: signatureSchema,
+    signatures: [companySignatureSchema],
     pan: { type: String, trim: true },
     alternatePhone: { type: String, trim: true },
     website: { type: String, trim: true },
     billingAddress: addressSchema,
     shippingAddress: addressSchema,
+    defaultReference: { type: String, trim: true },
+    defaultNotes: { type: String, trim: true },
+    defaultTerms: { type: String, trim: true },
   },
   { timestamps: true }
 );
@@ -45,6 +57,15 @@ export type ISignature = {
   name?: string;
   position?: string;
   withStamp?: boolean;
+};
+
+export type ICompanySignature = {
+  _id?: Types.ObjectId;
+  url: string;
+  name: string;
+  withStamp?: boolean;
+  isDefault?: boolean;
+  uploadId?: Types.ObjectId;
 };
 
 export type ICompany = Document & {
@@ -57,11 +78,15 @@ export type ICompany = Document & {
   tradeName?: string;
   logo?: string;
   signature?: ISignature;
+  signatures?: ICompanySignature[];
   pan?: string;
   alternatePhone?: string;
   website?: string;
   billingAddress?: IAddress;
   shippingAddress?: IAddress;
+  defaultReference?: string;
+  defaultNotes?: string;
+  defaultTerms?: string;
   createdAt: Date;
   updatedAt: Date;
 };
