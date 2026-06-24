@@ -13,6 +13,7 @@ export type CreateProductDto = {
   discount?: number;
   categoryId?: string;
   gst?: string;
+  hsn?: string;
   unit?: string;
   description?: string;
   images?: string[];
@@ -31,11 +32,26 @@ export type UpdateProductSettingsDto = {
   defaultPricePreference?: "inclusive" | "exclusive";
   defaultUnit?: string;
   maxDiscount?: number;
+  defaultTaxRate?: number;
+};
+
+export type PaginatedResult<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export type FindAllParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
 };
 
 export interface IProductRepository {
   create(data: CreateProductDto): Promise<IProduct>;
-  findAll(companyId: string): Promise<IProduct[]>;
+  findAll(companyId: string, params?: FindAllParams): Promise<PaginatedResult<IProduct>>;
   findById(id: string): Promise<IProduct | null>;
   update(id: string, data: UpdateProductDto): Promise<IProduct | null>;
   delete(id: string): Promise<void>;
@@ -46,7 +62,7 @@ export interface IProductRepository {
 
 export interface IProductService {
   create(data: CreateProductDto): Promise<IProduct>;
-  findAll(companyId: string): Promise<IProduct[]>;
+  findAll(companyId: string, params?: FindAllParams): Promise<PaginatedResult<IProduct>>;
   findById(id: string): Promise<IProduct | null>;
   update(id: string, data: UpdateProductDto): Promise<IProduct | null>;
   delete(id: string): Promise<void>;

@@ -12,6 +12,18 @@ const addressSchema = new Schema({
   notes: { type: String },
 });
 
+const tcsSchema = new Schema({
+  code: { type: String },
+  name: { type: String },
+  rate: { type: Number },
+});
+
+const tdsSchema = new Schema({
+  code: { type: String },
+  name: { type: String },
+  rate: { type: Number },
+});
+
 // customer schema — belongs to a Company
 const customerSchema = new Schema(
   {
@@ -35,10 +47,21 @@ const customerSchema = new Schema(
     priceList: { type: String },
     defaultDueDate: { type: String },
     tdsApplicable: { type: Boolean, default: false },
+    tdsSection: {
+      type: tdsSchema,
+      _id: false,
+      default: undefined,
+    },
     tcsApplicable: { type: Boolean, default: false },
+    tcsSection: {
+      type: tcsSchema,
+      _id: false,
+      default: undefined,
+    },
 
     // Other Details (Optional)
     openingBalance: { type: Number },
+    openingBalanceType: { type: String, enum: ["Debit", "Credit"], default: "Debit" },
     notes: { type: String },
     pan: { type: String },
     ccEmails: [{ type: String }],
@@ -80,10 +103,13 @@ export type ICustomer = Document & {
   priceList?: string;
   defaultDueDate?: string;
   tdsApplicable?: boolean;
+  tdsSection?: { code: string; name: string; rate: number };
   tcsApplicable?: boolean;
+  tcsSection?: { code: string; name: string; rate: number };
 
   // Other Details
   openingBalance?: number;
+  openingBalanceType?: "Debit" | "Credit";
   notes?: string;
   pan?: string;
   ccEmails?: string[];

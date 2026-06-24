@@ -16,8 +16,8 @@ export class BankRepository implements IBankRepository {
     return Bank.findById(id).lean<IBank>();
   }
 
-  async findByAccountNumber(accountNumber: string): Promise<IBank | null> {
-    return Bank.findOne({ accountNumber }).lean<IBank>();
+  async findByAccountNumber(accountNumber: string, companyId: string): Promise<IBank | null> {
+    return Bank.findOne({ accountNumber, companyId }).lean<IBank>();
   }
 
   async findDefault(companyId: string): Promise<IBank | null> {

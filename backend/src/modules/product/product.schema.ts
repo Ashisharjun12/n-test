@@ -29,6 +29,7 @@ const productSettingsSchema = new Schema(
     },
     defaultUnit: { type: String, default: "PCS" },
     maxDiscount: { type: Number, min: 0, max: 100, default: 100 },
+    defaultTaxRate: { type: Number, min: 0, max: 100, default: 0 },
   },
   { timestamps: true }
 );
@@ -67,6 +68,7 @@ const productSchema = new Schema(
       default: "inclusive",
     },
     gst: { type: String, trim: true },
+    hsn: { type: String, trim: true },
 
     // discount
     discount: { type: Number, min: 0, max: 100, default: 0 }, 
@@ -78,6 +80,7 @@ const productSchema = new Schema(
 
 
     // details
+    
     description: { type: String, trim: true },
     images: [{ type: Schema.Types.ObjectId, ref: "Upload" }],  
     amount: { type: Number, default: 0 },
@@ -112,6 +115,7 @@ export type IProduct = Document & {
   discount: number;
   categoryId?: Types.ObjectId;
   gst?: string;
+  hsn?: string;
   unit: string;
   notforsale: boolean;
   description?: string;
@@ -134,6 +138,7 @@ export type IProductSettings = Document & {
   defaultPricePreference: "inclusive" | "exclusive";
   defaultUnit: string;
   maxDiscount: number;
+  defaultTaxRate: number;
   createdAt: Date;
   updatedAt: Date;
 };

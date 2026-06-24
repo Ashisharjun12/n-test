@@ -13,6 +13,8 @@ import dispatchAddressRoute from "./modules/dispatchAddress/dispatchAddress.rout
 import authRoute from "./modules/auth/auth.route.js";
 import userRoute from "./modules/user/user.route.js";
 import bankRoute from "./modules/bank/bank.route.js";
+import gstRoute from "./modules/gst/gst.route.js";
+import { _config } from "./config/config.js";
 
 
 export class App {
@@ -26,8 +28,13 @@ export class App {
     }
 
     private setupMiddleware() {
+        const defaultOrigins = ["http://localhost:5173"];
+        const origins = _config.CLIENT_ORIGIN
+            ? _config.CLIENT_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean)
+            : defaultOrigins;
+
         const corsOption = {
-            origin: ["http://localhost:5173"],
+            origin: origins,
             methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
             credentials: true,
         };
@@ -56,6 +63,7 @@ export class App {
         this.app.use(`${prefix}/user`, userRoute)
         this.app.use(`${prefix}/company`, companyRoute)
         this.app.use(`${prefix}/bank`, bankRoute)
+        this.app.use(`${prefix}/gst`, gstRoute)
         this.app.use(`${prefix}/product`, productRoute)
         this.app.use(`${prefix}/customer`, customerRoute)
         this.app.use(`${prefix}/dispatchAddress`, dispatchAddressRoute)

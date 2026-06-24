@@ -1,17 +1,25 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { getProductPrice, getProductTaxRate, normalizeProductForQuotation } from "@/lib/productUtils";
+import { splitGst, computeGrandTotal } from "@/lib/quotationTaxUtils";
+import { buildChargePayload, findChargeByType, normalizeLegacyCharge } from "@/lib/chargeUtils";
+import { quotationApi } from "../../../api/quotation.api";
+import useCompanyStore from "../../../store/company.store";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import Banks from "../components/Banks";
+import { CASH_OPTION, BankRow, BankSelectSheet } from "../components/Banks";
+import DispatchAddressSheet, { DispatchAddressRow } from "../components/DispatchAddressSheet";
+import SignatureSheet, { SignatureRow, getCompanySignatures } from "../components/SignatureSheet";
+import AdditionalChargesSheet from "../components/AdditionalChargesSheet";
+import OptionalChargeRow from "../components/OptionalChargeRow";
+import QuotationTextSheet from "../components/QuotationTextSheet";
+import { bankApi } from "../../../api/bank.api";
 import Products from "../components/Products";
 import Customers from "../components/Customers";
-import banksData from "../data/banks.json";
 import {
   ArrowLeft, Pencil, UserCircle2, Package,
-   Truck, PenLine, Tag, StickyNote, FileText,
-  ReceiptIndianRupee, PackageOpen, ChevronRight, Plus, X,
-  IndianRupee, Calendar, ChevronDown,
+  PackageOpen, Plus, X,
+  Calendar, ChevronDown, Tag, StickyNote, FileText, Box,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 /* ── Helpers & Data ─────────────────────────────────────────────────── */
 const fmtDate = (d) => d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
@@ -229,57 +237,6 @@ function EditDocumentSheet({ open, onClose, docNum, setDocNum, docDate, setDocDa
 }
 
 /* ── UI Helpers ──────────────────────────────────────────────────────── */
-function OptionalRow({ icon, label, onClick }) {
-  return (
-    <button onClick={onClick} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3.5 transition-colors text-left" style={{ background: "transparent" }} onMouseEnter={e=>e.currentTarget.style.background="#f7f7f7"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-      <div className="size-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "#eef0f3" }}>{icon}</div>
-      <span className="text-[14px] flex-1 font-medium" style={{ color: "#0a0b0d" }}>{label}</span>
-      <ChevronRight className="size-4" style={{ color: "#a8acb3" }} />
-    </button>
-  );
-}
-
-function OptionalExpandRow({ icon, label, value, onChange, placeholder, multiline }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div>
-      <button onClick={() => setOpen(!open)} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3.5 transition-colors text-left" style={{ background: "transparent" }} onMouseEnter={e=>e.currentTarget.style.background="#f7f7f7"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-        <div className="size-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "#eef0f3" }}>{icon}</div>
-        <span className="text-[14px] flex-1 font-medium" style={{ color: value ? "#0a0b0d" : "#0a0b0d" }}>{value ? <span className="text-[#0a0b0d]">{value.slice(0, 40)}{value.length > 40 ? "…" : ""}</span> : label}</span>
-        <ChevronRight className={cn("size-4 transition-transform", open && "rotate-90")} style={{ color: "#a8acb3" }} />
-      </button>
-      {open && (
-        <div className="px-4 pb-4">
-          {multiline
-            ? <textarea placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} rows={3} className="w-full p-3 rounded-[12px] text-[14px] outline-none resize-none" style={{ background: "#eef0f3", color: "#0a0b0d" }} />
-            : <input type="text" placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} className="w-full h-[48px] px-4 rounded-[12px] text-[14px] outline-none" style={{ background: "#eef0f3", color: "#0a0b0d" }} autoFocus />}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function OptionalAmountRow({ icon, label, value, onChange }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div>
-      <button onClick={() => setOpen(!open)} className="cursor-pointer w-full flex items-center gap-3 px-4 py-3.5 transition-colors text-left" style={{ background: "transparent" }} onMouseEnter={e=>e.currentTarget.style.background="#f7f7f7"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-        <div className="size-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "#eef0f3" }}>{icon}</div>
-        <span className="text-[14px] flex-1 font-medium" style={{ color: "#0a0b0d" }}>{label}</span>
-        {value ? <span className="text-[15px] font-semibold" style={{ color: "#0a0b0d", fontFamily: "'JetBrains Mono', monospace" }}>₹{parseFloat(value).toLocaleString("en-IN")}</span> : <IndianRupee className="size-4" style={{ color: "#a8acb3" }} />}
-      </button>
-      {open && (
-        <div className="px-4 pb-4">
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[14px] font-medium" style={{ color: "#5b616e" }}>₹</span>
-            <input type="number" placeholder="0.00" value={value} onChange={(e) => onChange(e.target.value)} className="w-full h-[48px] pl-8 pr-4 rounded-[12px] text-[14px] outline-none" style={{ background: "#eef0f3", color: "#0a0b0d" }} autoFocus />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function SummaryRow({ label, value, bold, neg }) {
   return (
     <div className="flex items-center justify-between py-1">
@@ -294,13 +251,27 @@ function SummaryRow({ label, value, bold, neg }) {
 /* ── Main Page ───────────────────────────────────────────────────────── */
 export default function CreateQuotation() {
   const navigate = useNavigate();
-  const [isExportSEZ, setIsExportSEZ] = useState(false);
+  const { id: quotationId } = useParams();
+  const isEditMode = Boolean(quotationId);
+  const companyId = useCompanyStore((s) => s.activeCompany?._id);
+  const activeCompany = useCompanyStore((s) => s.activeCompany);
+
+  const [withGst, setWithGst] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedProducts, setSelectedProducts] = useState([]);
-  const [selectedBank, setSelectedBank] = useState(banksData[0]);
+  const [selectedBank, setSelectedBank] = useState(CASH_OPTION);
+  const [dispatchAddress, setDispatchAddress] = useState(null);
+  const [signature, setSignature] = useState(null);
+  const [showDispatch, setShowDispatch] = useState(false);
+  const [showBank, setShowBank] = useState(false);
+  const [showSignature, setShowSignature] = useState(false);
+  const [showAdditionalCharges, setShowAdditionalCharges] = useState(false);
   const [showCustomers, setShowCustomers] = useState(false);
   const [showProducts, setShowProducts] = useState(false);
   const [showEditDoc, setShowEditDoc] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(isEditMode);
+  const [roundOff, setRoundOff] = useState(false);
 
   const [docNum, setDocNum] = useState(EST_NUMBER);
   const [docDate, setDocDate] = useState(new Date());
@@ -308,24 +279,206 @@ export default function CreateQuotation() {
   const [docTitle, setDocTitle] = useState("Quotation");
   const [discountOn, setDiscountOn] = useState("Total Amount");
 
+  const [shippingCharge, setShippingCharge] = useState(null);
+  const [packagingCharge, setPackagingCharge] = useState(null);
+  const [additionalCharges, setAdditionalCharges] = useState([]);
+  const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [terms, setTerms] = useState("");
-  const [reference, setReference] = useState("");
-  const [extraDiscount, setExtraDiscount] = useState("");
-  const [shippingCharges, setShippingCharges] = useState("");
 
-  const subtotal = selectedProducts.reduce((s, p) => s + p.price * p.qty, 0);
-  const gstTotal = selectedProducts.reduce((s, p) => s + (p.price * p.qty * (p.gst || 0)) / 100, 0);
-  const discount = parseFloat(extraDiscount) || 0;
-  const shipping = parseFloat(shippingCharges) || 0;
-  const grandTotal = subtotal + gstTotal - discount + shipping;
+  useEffect(() => {
+    if (!isEditMode || !quotationId) return;
+    setLoading(true);
+    quotationApi
+      .getQuotationById(quotationId)
+      .then((res) => {
+        const q = res.data?.data;
+        if (!q) return;
+        setDocNum(q.quotationNo || EST_NUMBER);
+        if (q.documentDate) setDocDate(new Date(q.documentDate));
+        if (q.dueDate) setDueDate(new Date(q.dueDate));
+        setDocTitle(q.documentTitle || "Quotation");
+        setWithGst(q.withGst !== false);
+        setRoundOff(q.roundOff || false);
+        setDispatchAddress(q.dispatchAddress || null);
+        setSignature(q.signature || null);
+        if (q.paymentMethod === "bank" && q.bank) {
+          setSelectedBank({ ...q.bank, type: "bank", paymentMethod: "bank", name: q.bank.bankName });
+        } else {
+          setSelectedBank(CASH_OPTION);
+        }
+        setSelectedCustomer(q.customer);
+        setSelectedProducts(
+          (q.items || []).map((item) =>
+            normalizeProductForQuotation(
+              {
+                _id: item.productId,
+                name: item.name,
+                hsn: item.hsn,
+                unit: item.unit,
+                sellingPrice: item.price,
+                taxRate: item.taxRate,
+              },
+              item.quantity
+            )
+          )
+        );
+        setReference(q.reference || "");
+        setNotes(q.notes || "");
+        setTerms(q.terms || "");
+        const shipping = findChargeByType(q.extraCharges, "shipping");
+        const packaging = findChargeByType(q.extraCharges, "packaging");
+        setShippingCharge(shipping ? normalizeLegacyCharge(shipping) : null);
+        setPackagingCharge(packaging ? normalizeLegacyCharge(packaging) : null);
+        setAdditionalCharges(
+          (q.extraCharges || [])
+            .filter((c) => {
+              const type = c.type || (c.label === "Shipping" ? "shipping" : c.label === "Packaging" ? "packaging" : "other");
+              return type === "other";
+            })
+            .map((c) => normalizeLegacyCharge(c))
+        );
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [isEditMode, quotationId]);
+
+  // Auto-select default bank & signature on new quotations
+  useEffect(() => {
+    if (isEditMode || !companyId) return;
+
+    bankApi.getBanks(companyId).then((res) => {
+      const banks = res.data?.data || [];
+      const defaultBank = banks.find((b) => b.isDefault);
+      if (!defaultBank) return;
+      setSelectedBank((prev) => {
+        if (prev?.paymentMethod === "bank" && prev?._id) return prev;
+        return {
+          ...defaultBank,
+          type: "bank",
+          paymentMethod: "bank",
+          name: defaultBank.bankName,
+        };
+      });
+    }).catch(console.error);
+
+    const sigs = getCompanySignatures(activeCompany);
+    const defaultSig = sigs.find((s) => s.isDefault) || sigs[0];
+    if (!defaultSig?.url) return;
+    setSignature((prev) => prev?.url ? prev : {
+      url: defaultSig.url,
+      name: defaultSig.name,
+      withStamp: defaultSig.withStamp,
+    });
+
+    setReference((prev) => prev || activeCompany?.defaultReference || "");
+    setNotes((prev) => prev || activeCompany?.defaultNotes || "");
+    setTerms((prev) => prev || activeCompany?.defaultTerms || "");
+  }, [isEditMode, companyId, activeCompany]);
+
+  const companyState = activeCompany?.billingAddress?.state;
+  const customerState = selectedCustomer?.billingAddress?.state;
+
+  const subtotal = selectedProducts.reduce(
+    (s, p) => s + getProductPrice(p) * p.qty,
+    0
+  );
+  const taxBreakdown = splitGst(
+    selectedProducts,
+    getProductPrice,
+    (p) => p.qty,
+    (p) => (withGst ? getProductTaxRate(p) : 0),
+    withGst,
+    companyState,
+    customerState
+  );
+  const gstTotal = taxBreakdown.totalTax;
+
+  const builtExtraCharges = [
+    buildChargePayload(shippingCharge, subtotal),
+    buildChargePayload(packagingCharge, subtotal),
+    ...additionalCharges.map((c) =>
+      buildChargePayload({ ...c, type: "other" }, subtotal) || (c.amount ? c : null)
+    ),
+  ].filter(Boolean);
+
+  const grandTotal = computeGrandTotal({ subtotal, gstTotal, extraCharges: builtExtraCharges, roundOff });
+
+  const handleSave = async () => {
+    if (!companyId || !selectedCustomer || selectedProducts.length === 0) return;
+    setSaving(true);
+    try {
+      const effectiveTaxRate = (p) => (withGst ? getProductTaxRate(p) : 0);
+      const payload = {
+        companyId,
+        quotationNo: docNum,
+        customer: selectedCustomer._id,
+        documentDate: docDate.toISOString(),
+        dueDate: dueDate.toISOString(),
+        documentTitle: docTitle,
+        withGst,
+        isExportSEZ: false,
+        paymentMethod: selectedBank?.paymentMethod === "bank" ? "bank" : "cash",
+        bank: selectedBank?.paymentMethod === "bank" ? selectedBank._id : undefined,
+        dispatchAddress: dispatchAddress || undefined,
+        signature: signature || undefined,
+        roundOff,
+        items: selectedProducts.map((p) => {
+          const price = getProductPrice(p);
+          const rate = effectiveTaxRate(p);
+          const lineSub = price * p.qty;
+          const lineTax = (lineSub * rate) / 100;
+          return {
+            productId: p._id || p.id,
+            name: p.name,
+            description: p.description,
+            hsn: p.hsn,
+            unit: p.unit || "PCS",
+            quantity: p.qty,
+            price,
+            taxRate: rate,
+            total: lineSub + lineTax,
+          };
+        }),
+        subTotal: subtotal,
+        discount: 0,
+        reference: reference || undefined,
+        notes: notes || undefined,
+        terms: terms || undefined,
+        extraCharges: builtExtraCharges,
+        totalAmount: grandTotal,
+        status: "CREATED",
+      };
+
+      if (isEditMode) {
+        const { companyId: _, ...updatePayload } = payload;
+        await quotationApi.updateQuotation(quotationId, updatePayload);
+        navigate(`/quotation/${quotationId}`);
+      } else {
+        const res = await quotationApi.createQuotation(payload);
+        const newId = res.data?.data?._id;
+        navigate(newId ? `/quotation/${newId}` : "/quotations");
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Failed to save quotation");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "#ffffff", fontFamily: "Inter, sans-serif" }}>
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-[14px] text-[#7c828a]">Loading quotation...</p>
+        </div>
+      ) : (
+      <>
       {/* App Bar */}
       <div className="sticky top-0 z-20 backdrop-blur-md" style={{ background: "rgba(255,255,255,0.92)", borderBottom: "1px solid #dee1e6", height: 64 }}>
         <div className="max-w-2xl mx-auto px-5 h-full flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="cursor-pointer transition-colors" style={{ color: "#5b616e" }} onMouseEnter={e=>e.currentTarget.style.color="#0a0b0d"} onMouseLeave={e=>e.currentTarget.style.color="#5b616e"}>
+          <button onClick={() => (isEditMode ? navigate(`/quotation/${quotationId}`) : navigate(-1))} className="cursor-pointer transition-colors" style={{ color: "#5b616e" }} onMouseEnter={e=>e.currentTarget.style.color="#0a0b0d"} onMouseLeave={e=>e.currentTarget.style.color="#5b616e"}>
             <ArrowLeft className="size-5" />
           </button>
           <h1 className="text-[16px] font-medium flex-1" style={{ color: "#0a0b0d" }}>{docTitle} / Estimate</h1>
@@ -346,14 +499,21 @@ export default function CreateQuotation() {
             </button>
           </div>
 
-          {/* SEZ */}
-          <label className="flex items-center gap-3 px-1 cursor-pointer w-max select-none group">
-            <div className="relative size-5 rounded-[4px] flex items-center justify-center transition-all" style={{ border: `1px solid ${isExportSEZ ? "#0052ff" : "#dee1e6"}`, background: isExportSEZ ? "#0052ff" : "#ffffff" }}>
-              <input type="checkbox" checked={isExportSEZ} onChange={(e) => setIsExportSEZ(e.target.checked)} className="sr-only" />
-              {isExportSEZ && <span className="text-white text-[10px] font-bold">✓</span>}
-            </div>
-            <span className="text-[14px] font-medium group-hover:text-[#0a0b0d] transition-colors" style={{ color: "#5b616e" }}>Export Invoice / SEZ</span>
-          </label>
+          {/* GST Toggle */}
+          <div className="flex items-center gap-6 px-1">
+            {["With GST", "Without GST"].map((opt) => {
+              const active = (opt === "With GST") === withGst;
+              return (
+                <label key={opt} className="cursor-pointer flex items-center gap-2 text-[14px]" style={{ color: "#0a0b0d" }}>
+                  <div className="size-5 rounded-full flex items-center justify-center" style={{ border: `2px solid ${active ? "#0052ff" : "#dee1e6"}` }}>
+                    {active && <div className="size-2.5 rounded-full" style={{ background: "#0052ff" }} />}
+                  </div>
+                  <input type="radio" className="sr-only" checked={active} onChange={() => setWithGst(opt === "With GST")} />
+                  {opt}
+                </label>
+              );
+            })}
+          </div>
 
           {/* Customer */}
           <div>
@@ -389,15 +549,18 @@ export default function CreateQuotation() {
             </div>
             {selectedProducts.length > 0 && (
               <div className="mb-3 flex flex-col gap-2">
-                {selectedProducts.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between p-4 rounded-[16px]" style={{ border: "1px solid #dee1e6", background: "#ffffff" }}>
+                {selectedProducts.map((p) => {
+                  const price = getProductPrice(p);
+                  return (
+                  <div key={p._id || p.id} className="flex items-center justify-between p-4 rounded-[16px]" style={{ border: "1px solid #dee1e6", background: "#ffffff" }}>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-semibold truncate" style={{ color: "#0a0b0d" }}>{p.name}</p>
-                      <p className="text-[13px] mt-1" style={{ color: "#5b616e", fontFamily: "'JetBrains Mono', monospace" }}>{p.qty} × ₹{p.price} = ₹{(p.qty * p.price).toLocaleString("en-IN")}</p>
+                      <p className="text-[13px] mt-1" style={{ color: "#5b616e", fontFamily: "'JetBrains Mono', monospace" }}>{p.qty} × ₹{price} = ₹{(p.qty * price).toLocaleString("en-IN")}</p>
                     </div>
                     <span className="text-[12px] font-medium px-2 py-1 rounded-[6px] ml-3" style={{ background: "#eef0f3", color: "#5b616e" }}>{p.unit}</span>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             <button onClick={() => setShowProducts(true)} className="cursor-pointer w-full flex items-center gap-3 p-4 rounded-[100px] transition-all" style={{ border: "1px solid #dee1e6", background: "#ffffff" }} onMouseEnter={e=>e.currentTarget.style.background="#f7f7f7"} onMouseLeave={e=>e.currentTarget.style.background="#ffffff"}>
@@ -414,26 +577,69 @@ export default function CreateQuotation() {
           <div>
             <div className="flex items-center justify-between mb-4 px-1">
               <p className="text-[15px] font-semibold" style={{ color: "#0a0b0d" }}>Optional</p>
-              <button className="cursor-pointer flex items-center gap-1.5 text-[13px] font-medium transition-colors" style={{ color: "#5b616e" }} onMouseEnter={e=>e.currentTarget.style.color="#0a0b0d"} onMouseLeave={e=>e.currentTarget.style.color="#5b616e"}>
-                <Plus className="size-3.5" /> Additional Charges
+              <button
+                type="button"
+                onClick={() => setShowAdditionalCharges(true)}
+                className="cursor-pointer flex items-center gap-1.5 text-[13px] font-medium transition-colors"
+                style={{ color: additionalCharges.length ? "#0052ff" : "#5b616e" }}
+              >
+                <Plus className="size-3.5" /> Additional Charges{additionalCharges.length ? ` (${additionalCharges.length})` : ""}
               </button>
             </div>
             <div className="flex flex-col rounded-[24px] overflow-hidden" style={{ border: "1px solid #dee1e6", background: "#ffffff" }}>
-              <OptionalRow icon={<Truck className="size-4" style={{ color: "#5b616e" }} />} label="Select Dispatch Address" />
+              <DispatchAddressRow selected={dispatchAddress} onClick={() => setShowDispatch(true)} />
               <div className="mx-5 h-[1px]" style={{ background: "#dee1e6" }} />
-              <div className="px-5 py-2"><Banks selectedBank={selectedBank} onSelect={setSelectedBank} /></div>
+              <BankRow selectedBank={selectedBank} onClick={() => setShowBank(true)} />
               <div className="mx-5 h-[1px]" style={{ background: "#dee1e6" }} />
-              <OptionalRow icon={<PenLine className="size-4" style={{ color: "#5b616e" }} />} label="Select Signature" />
+              <SignatureRow selected={signature} onClick={() => setShowSignature(true)} />
               <div className="mx-5 h-[1px]" style={{ background: "#dee1e6" }} />
-              <OptionalExpandRow icon={<Tag className="size-4" style={{ color: "#5b616e" }} />} label="Add Reference" value={reference} onChange={setReference} placeholder="Enter reference..." />
+              <QuotationTextSheet
+                icon={<Tag className="size-4" style={{ color: "#5b616e" }} />}
+                label="Reference"
+                value={reference}
+                placeholder="Add reference"
+                fieldKey="reference"
+                saveLabel="Submit"
+                onSave={(text) => setReference(text || "")}
+              />
               <div className="mx-5 h-[1px]" style={{ background: "#dee1e6" }} />
-              <OptionalExpandRow icon={<StickyNote className="size-4" style={{ color: "#5b616e" }} />} label="Add Notes" value={notes} onChange={setNotes} placeholder="Enter notes..." multiline />
+              <QuotationTextSheet
+                icon={<StickyNote className="size-4" style={{ color: "#5b616e" }} />}
+                label="Notes"
+                value={notes}
+                placeholder="Add notes"
+                fieldKey="notes"
+                multiline
+                onSave={(text) => setNotes(text || "")}
+              />
               <div className="mx-5 h-[1px]" style={{ background: "#dee1e6" }} />
-              <OptionalExpandRow icon={<FileText className="size-4" style={{ color: "#5b616e" }} />} label="Add Terms" value={terms} onChange={setTerms} placeholder="Enter terms & conditions..." multiline />
+              <QuotationTextSheet
+                icon={<FileText className="size-4" style={{ color: "#5b616e" }} />}
+                label="Terms & Conditions"
+                value={terms}
+                placeholder="Add terms & conditions"
+                fieldKey="terms"
+                multiline
+                onSave={(text) => setTerms(text || "")}
+              />
               <div className="mx-5 h-[1px]" style={{ background: "#dee1e6" }} />
-              <OptionalAmountRow icon={<ReceiptIndianRupee className="size-4" style={{ color: "#5b616e" }} />} label="Add Extra Discount" value={extraDiscount} onChange={setExtraDiscount} />
+              <OptionalChargeRow
+                icon={<PackageOpen className="size-4" style={{ color: "#5b616e" }} />}
+                chargeType="shipping"
+                label="Delivery / Shipping Charges"
+                charge={shippingCharge}
+                baseSubtotal={subtotal}
+                onSave={setShippingCharge}
+              />
               <div className="mx-5 h-[1px]" style={{ background: "#dee1e6" }} />
-              <OptionalAmountRow icon={<PackageOpen className="size-4" style={{ color: "#5b616e" }} />} label="Delivery / Shipping Charges" value={shippingCharges} onChange={setShippingCharges} />
+              <OptionalChargeRow
+                icon={<Box className="size-4" style={{ color: "#5b616e" }} />}
+                chargeType="packaging"
+                label="Packaging Charges"
+                charge={packagingCharge}
+                baseSubtotal={subtotal}
+                onSave={setPackagingCharge}
+              />
             </div>
           </div>
 
@@ -442,9 +648,32 @@ export default function CreateQuotation() {
             <div className="rounded-[24px] p-5 space-y-3" style={{ border: "1px solid #dee1e6", background: "#ffffff" }}>
               <p className="text-[15px] font-semibold mb-4" style={{ color: "#0a0b0d" }}>Summary</p>
               <SummaryRow label="Subtotal" value={subtotal} />
-              <SummaryRow label="GST" value={gstTotal} />
-              {discount > 0 && <SummaryRow label="Extra Discount" value={-discount} neg />}
-              {shipping > 0 && <SummaryRow label="Shipping" value={shipping} />}
+              {withGst && taxBreakdown.isInterState && taxBreakdown.igst > 0 && (
+                <SummaryRow label={`IGST (${taxBreakdown.igstRate}%)`} value={taxBreakdown.igst} />
+              )}
+              {withGst && !taxBreakdown.isInterState && taxBreakdown.cgst > 0 && (
+                <>
+                  <SummaryRow label={`CGST (${taxBreakdown.cgstRate}%)`} value={taxBreakdown.cgst} />
+                  <SummaryRow label={`SGST (${taxBreakdown.sgstRate}%)`} value={taxBreakdown.sgst} />
+                </>
+              )}
+              {withGst && taxBreakdown.totalTax === 0 && gstTotal === 0 && (
+                <SummaryRow label="GST" value={0} />
+              )}
+              {builtExtraCharges.map((c) => (
+                <SummaryRow key={c.label || c.type} label={c.label} value={c.amount} />
+              ))}
+              <div className="flex items-center justify-between py-2">
+                <span className="text-[14px]" style={{ color: "#5b616e" }}>Round Off</span>
+                <button
+                  type="button"
+                  onClick={() => setRoundOff(!roundOff)}
+                  className="cursor-pointer relative w-11 h-6 rounded-full transition-colors"
+                  style={{ background: roundOff ? "#0052ff" : "#d1d5db" }}
+                >
+                  <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${roundOff ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
               <div className="h-[1px] my-3" style={{ background: "#dee1e6" }} />
               <div className="flex items-center justify-between">
                 <span className="text-[16px] font-semibold" style={{ color: "#0a0b0d" }}>Grand Total</span>
@@ -458,21 +687,43 @@ export default function CreateQuotation() {
         </div>
       </div>
 
-      {/* Save Button */}
-      <div className="sticky bottom-0 border-t" style={{ background: "rgba(255,255,255,0.92)", borderTop: "1px solid #dee1e6", padding: "16px 20px" }}>
-        <div className="max-w-2xl mx-auto">
-          <button disabled={!selectedCustomer || selectedProducts.length === 0}
-            className="cursor-pointer w-full flex items-center justify-center gap-2 rounded-[100px] text-[16px] font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed px-6"
-            style={{ background: "#0052ff", height: 56 }} onMouseEnter={e=>!e.currentTarget.disabled && (e.currentTarget.style.background="#003ecc")} onMouseLeave={e=>!e.currentTarget.disabled && (e.currentTarget.style.background="#0052ff")}>
-            Save {docTitle}
-            {grandTotal > 0 && <span className="ml-auto font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>₹{grandTotal.toLocaleString("en-IN")}</span>}
-          </button>
-        </div>
+      {/* Create / Save Button */}
+      <div
+        className="sticky bottom-0 w-full border-t pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 px-4"
+        style={{ background: "rgba(255,255,255,0.92)", borderTop: "1px solid #dee1e6" }}
+      >
+        <button
+          type="button"
+          disabled={!selectedCustomer || selectedProducts.length === 0 || saving}
+          onClick={handleSave}
+          className="cursor-pointer w-full flex items-center justify-between gap-3 rounded-[100px] text-[16px] font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed px-6"
+          style={{ background: "#0052ff", height: 56 }}
+          onMouseEnter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = "#003ecc")}
+          onMouseLeave={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = "#0052ff")}
+        >
+          <span>{saving ? (isEditMode ? "Saving..." : "Creating...") : "Create"}</span>
+          {grandTotal > 0 && (
+            <span className="font-bold shrink-0" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              ₹{grandTotal.toLocaleString("en-IN")}
+            </span>
+          )}
+        </button>
       </div>
 
       <EditDocumentSheet open={showEditDoc} onClose={() => setShowEditDoc(false)} docNum={docNum} setDocNum={setDocNum} docDate={docDate} setDocDate={setDocDate} dueDate={dueDate} setDueDate={setDueDate} docTitle={docTitle} setDocTitle={setDocTitle} discountOn={discountOn} setDiscountOn={setDiscountOn} />
+      <DispatchAddressSheet open={showDispatch} onClose={() => setShowDispatch(false)} selected={dispatchAddress} onSelect={setDispatchAddress} />
+      <BankSelectSheet open={showBank} onClose={() => setShowBank(false)} selectedBank={selectedBank} onSelect={setSelectedBank} />
+      <SignatureSheet open={showSignature} onClose={() => setShowSignature(false)} selected={signature} onSelect={setSignature} />
+      <AdditionalChargesSheet
+        open={showAdditionalCharges}
+        onClose={() => setShowAdditionalCharges(false)}
+        charges={additionalCharges}
+        onChange={setAdditionalCharges}
+      />
       <Customers open={showCustomers} onOpenChange={setShowCustomers} selectedCustomer={selectedCustomer} onSelect={setSelectedCustomer} />
       <Products open={showProducts} onOpenChange={setShowProducts} selectedProducts={selectedProducts} onProductsChange={setSelectedProducts} />
+      </>
+      )}
     </div>
   );
 }

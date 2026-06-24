@@ -1,0 +1,63 @@
+# All ${VAR} substitutions and service env_file paths use root ./.env
+# Copy .env.sample → .env and fill in values before deploy.
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      PORT: ${PORT:-3000}
+      NODE_ENV: ${NODE_ENV:-production}
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017/nero}
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      REFRESH_SECRET: ${REFRESH_SECRET}
+      REFRESH_EXPIRES_IN: ${REFRESH_EXPIRES_IN:-30d}
+      REDIS_URI: ${REDIS_URI:-}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-r2}
+      CLOUDINARY_SECRET: ${CLOUDINARY_SECRET:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY: ${R2_ACCESS_KEY:-}
+      R2_SECRET_KEY: ${R2_SECRET_KEY:-}
+      R2_BUCKET: ${R2_BUCKET:-}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL:-}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    depends_on:
+      - mongo
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    ports:
+      - "${CLIENT_PORT:-80}:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:

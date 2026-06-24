@@ -7,13 +7,15 @@ import { ICustomerService } from "./customer.interface.js";
 export class CustomerController {
   constructor(private readonly customerService: ICustomerService) {}
 
-  // GET /api/v1/customer?companyId=xxx
+  // GET /api/v1/customer?companyId=xxx&page=1&limit=20&search=term
   getAll = asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.query.companyId as string;
     if (!companyId) throw ApiError.badRequest("companyId query param is required.");
-    
-    const customers = await this.customerService.findAll(companyId);
-    res.status(200).json(new ApiResponse(200, customers, "Customers fetched successfully."));
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const search = (req.query.search as string) || "";
+    const result = await this.customerService.findAll(companyId, { page, limit, search });
+    res.status(200).json(new ApiResponse(200, result, "Customers fetched successfully."));
   });
 
   // GET /api/v1/customer/:id

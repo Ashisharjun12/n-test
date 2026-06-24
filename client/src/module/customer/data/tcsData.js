@@ -1,0 +1,16 @@
+export const TCS_SECTIONS = [
+  { code: "206C(1)(a)", name: "394SI(1) Liquor of alcoholic nature, made for consumption by humans", rate: 2 },
+  { code: "206C(1)(b)", name: "394SI(2) Tendu leaves", rate: 2 },
+  { code: "206C(1)(c)", name: "394SI(3) Timber wood under a forest leased", rate: 2 },
+  { code: "206C(1)(d)", name: "394SI(3) Timber wood by any other mode than forest leased", rate: 2 },
+  { code: "206C(1)(e)", name: "394SI(4) Scrap", rate: 2 },
+  { code: "206C(1)(f)", name: "394SI(5) Minerals like lignite, coal and iron ore", rate: 2 },
+  { code: "206C(1F)", name: "394SI(6) Purchase of Motor vehicle exceeding Rs.10 Lakhs", rate: 1 },
+  { code: "206C(1G)(a)", name: "394SI(7) Remittance out of India under the Liberalized Remittance Scheme of RBI", rate: 5 },
+  { code: "206C(1G)(b)", name: "394SI(8) TCS on selling of overseas tour package", rate: 2 },
+  { code: "206C(1H)", name: "394SI(9) Parking lot, Toll Plaza and Mining and Quarrying", rate: 2 },
+  { code: "206C(1G)(c)", name: "394SI(7) Collection at source on remittance under LRS except for education/medical", rate: 20 },
+  { code: "206C(1)(g)", name: "394SI(10) Forest produce other than tendu or timber", rate: 2 },
+  { code: "206C(2)", name: "TCS on sale of any goods through auction", rate: 1 },
+  { code: "206C(1C)", name: "TCS on parking lots, toll plazas, quarrying", rate: 2 },
+];
