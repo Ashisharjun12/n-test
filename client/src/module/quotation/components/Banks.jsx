@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Landmark, Banknote, Loader2, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Landmark, Banknote, Loader2, Plus, ExternalLink } from "lucide-react";
 import BottomSheetModal from "@/components/ui/bottom-sheet-modal";
 import BankForm from "@/module/bank/components/BankForm";
 import { bankApi } from "@/api/bank.api";
@@ -43,6 +44,7 @@ export function BankRow({ selectedBank, onClick }) {
 }
 
 export function BankSelectSheet({ open, onClose, selectedBank, onSelect }) {
+  const navigate = useNavigate();
   const [formOpen, setFormOpen] = useState(false);
   const [banks, setBanks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -86,6 +88,11 @@ export function BankSelectSheet({ open, onClose, selectedBank, onSelect }) {
     }
   };
 
+  const goManage = () => {
+    onClose();
+    navigate("/banks");
+  };
+
   return (
     <>
       <BottomSheetModal
@@ -96,13 +103,22 @@ export function BankSelectSheet({ open, onClose, selectedBank, onSelect }) {
         maxWidth="max-w-lg"
         bodyClassName="px-5 py-4 flex flex-col gap-2 !bg-white"
       >
-        <button
-          type="button"
-          onClick={() => setFormOpen(true)}
-          className="cursor-pointer flex items-center gap-1.5 text-[14px] font-semibold text-[#0052ff] py-1 mb-1 self-start"
-        >
-          <Plus className="size-4" /> Add New Bank
-        </button>
+        <div className="flex items-center justify-between mb-1">
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="cursor-pointer flex items-center gap-1.5 text-[14px] font-semibold text-[#0052ff] py-1"
+          >
+            <Plus className="size-4" /> Add New Bank
+          </button>
+          <button
+            type="button"
+            onClick={goManage}
+            className="cursor-pointer flex items-center gap-1 text-[13px] font-semibold text-[#0052ff] py-1"
+          >
+            Manage <ExternalLink className="size-3.5" />
+          </button>
+        </div>
 
         {loading ? (
           <div className="flex justify-center py-10">

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Receipt, ChevronRight,
-  Users, Package, FileText, BarChart3,
+  Users, Package, FileText, BarChart3, Landmark,
   Building2, ChevronDown, Plus, MoreHorizontal, Edit, Trash2
 } from 'lucide-react'
 import ProfileMenu from '@/components/shared/ProfileMenu'
@@ -49,8 +49,8 @@ const FEATURES = [
     desc: 'Manage your customer contacts and history.',
     color: '#f4b000',
     bg: '#fef8e6',
-    route: null,
-    active: false,
+    route: '/customers',
+    active: true,
   },
   {
     id: 'products',
@@ -59,8 +59,18 @@ const FEATURES = [
     desc: 'Manage catalog, inventory and pricing.',
     color: '#7c828a',
     bg: '#eef0f3',
-    route: null,
-    active: false,
+    route: '/products',
+    active: true,
+  },
+  {
+    id: 'banks',
+    icon: Landmark,
+    label: 'Banks',
+    desc: 'Manage bank accounts for quotations.',
+    color: '#0052ff',
+    bg: '#e8eeff',
+    route: '/banks',
+    active: true,
   },
   {
     id: 'reports',

@@ -1,88 +1,29 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { Search, UserPlus, Users, Building2, Phone, MapPin, Loader2, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Search, UserPlus, Users, Building2, Phone, MapPin, Loader2, ChevronRight, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { customerApi } from "../../../api/customer.api";
-import useCompanyStore from "../../../store/company.store";
 import CustomerForm from "../../customer/components/CustomerForm";
 import { BottomDrawer, safeAreaBottom } from "@/components/ui/bottom-drawer";
-
-const PAGE_SIZE = 20;
+import { useCustomerList, CUSTOMER_PAGE_SIZE } from "../../customer/hooks/useCustomerList";
 
 export default function Customers({ open, onOpenChange, selectedCustomer, onSelect }) {
-  const [search, setSearch] = useState("");
+  const navigate = useNavigate();
   const [view, setView] = useState("list");
   const [editCustomer, setEditCustomer] = useState(null);
-
-  // pagination state
-  const [items, setItems] = useState([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const sentinelRef = useRef(null);
-  const searchDebounceRef = useRef(null);
-  const companyId = useCompanyStore((s) => s.activeCompany?._id);
+  const {
+    companyId,
+    search,
+    setSearch,
+    items,
+    setItems,
+    loading,
+    loadingMore,
+    sentinelRef,
+    hasMore,
+  } = useCustomerList({ enabled: open });
 
-  // ── Fetch a specific page ──────────────────────────────────────
-  const fetchPage = useCallback(async (pageNum, searchTerm, replace = false) => {
-    if (!companyId) return;
-    if (replace) setLoading(true); else setLoadingMore(true);
-    try {
-      const res = await customerApi.getCustomers(companyId, { page: pageNum, limit: PAGE_SIZE, search: searchTerm });
-      const data = res.data?.data;
-      setItems((prev) => replace ? (data?.items || []) : [...prev, ...(data?.items || [])]);
-      setPage(data?.page ?? pageNum);
-      setTotalPages(data?.totalPages ?? 1);
-    } catch (err) {
-      console.error("Failed to fetch customers", err);
-    } finally {
-      if (replace) setLoading(false); else setLoadingMore(false);
-    }
-  }, [companyId]);
-
-  // Re-fetch from page 1 when drawer opens
-  useEffect(() => {
-    if (open) {
-      setSearch("");
-      setItems([]);
-      setPage(1);
-      fetchPage(1, "", true);
-    }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Debounced search → fetch from page 1
-  useEffect(() => {
-    clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => {
-      setItems([]);
-      setPage(1);
-      fetchPage(1, search, true);
-    }, 350);
-    return () => clearTimeout(searchDebounceRef.current);
-  }, [search, fetchPage]);
-
-  // IntersectionObserver — load next page when sentinel enters viewport
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !loading && !loadingMore && page < totalPages) {
-          const nextPage = page + 1;
-          setPage(nextPage);
-          fetchPage(nextPage, search);
-        }
-      },
-      { threshold: 0.1 }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [loading, loadingMore, page, totalPages, search, fetchPage]);
-
-  const hasMore = page < totalPages;
-
-  // ── Handlers ──────────────────────────────────────────────────
   const handleDelete = async (customer) => {
     if (!window.confirm(`Delete customer "${customer.name}"? This cannot be undone.`)) return;
     setActionLoading(true);
@@ -146,14 +87,17 @@ export default function Customers({ open, onOpenChange, selectedCustomer, onSele
     }
   };
 
+  const goManage = () => {
+    onOpenChange(false);
+    navigate("/customers");
+  };
+
   return (
     <BottomDrawer open={open} onOpenChange={handleClose}>
-      {/* ── Add view ── */}
       {view === "add" && (
         <CustomerForm onBack={() => setView("list")} onSave={handleSave} saving={actionLoading} />
       )}
 
-      {/* ── Edit view ── */}
       {view === "edit" && editCustomer && (
         <CustomerForm
           initialData={editCustomer}
@@ -163,24 +107,28 @@ export default function Customers({ open, onOpenChange, selectedCustomer, onSele
         />
       )}
 
-      {/* ── List view ── */}
       {view === "list" && (
         <>
-          {/* Header */}
           <div className="flex items-center justify-between px-5 pt-2 pb-3 shrink-0" style={{ borderBottom: "1px solid #dee1e6" }}>
             <h2 className="text-[16px] font-semibold" style={{ color: "#0a0b0d" }}>Select Customer</h2>
-            <button
-              onClick={() => setView("add")}
-              className="cursor-pointer flex items-center gap-1.5 text-[14px] font-semibold transition-colors"
-              style={{ color: "#0052ff" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#003ecc")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#0052ff")}
-            >
-              <UserPlus className="size-4" /> New
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={goManage}
+                className="cursor-pointer flex items-center gap-1 text-[13px] font-semibold text-[#0052ff]"
+              >
+                Manage <ExternalLink className="size-3.5" />
+              </button>
+              <button
+                onClick={() => setView("add")}
+                className="cursor-pointer flex items-center gap-1.5 text-[14px] font-semibold transition-colors"
+                style={{ color: "#0052ff" }}
+              >
+                <UserPlus className="size-4" /> New
+              </button>
+            </div>
           </div>
 
-          {/* Search */}
           <div className="px-5 py-4 shrink-0">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4" style={{ color: "#5b616e" }} />
@@ -194,9 +142,7 @@ export default function Customers({ open, onOpenChange, selectedCustomer, onSele
             </div>
           </div>
 
-          {/* List */}
           <div className={`flex-1 overflow-y-auto px-5 pb-5 flex flex-col gap-2 ${safeAreaBottom}`}>
-            {/* Add new CTA */}
             <button
               onClick={() => setView("add")}
               className="cursor-pointer w-full flex items-center gap-4 p-4 rounded-[16px] transition-all"
@@ -225,6 +171,13 @@ export default function Customers({ open, onOpenChange, selectedCustomer, onSele
                 <p className="text-[14px] font-medium" style={{ color: "#5b616e" }}>
                   {search ? "No customers found" : "No customers yet"}
                 </p>
+                <button
+                  type="button"
+                  onClick={goManage}
+                  className="cursor-pointer mt-4 text-[13px] font-semibold text-[#0052ff]"
+                >
+                  Manage customers
+                </button>
               </div>
             ) : (
               <>
@@ -240,14 +193,12 @@ export default function Customers({ open, onOpenChange, selectedCustomer, onSele
                       }}
                     >
                       <div className="flex items-start gap-4">
-                        {/* Avatar */}
                         <div className="size-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "#eef0f3" }}>
                           <span className="text-[15px] font-bold" style={{ color: "#0052ff" }}>
                             {customer.name?.charAt(0).toUpperCase()}
                           </span>
                         </div>
 
-                        {/* Info — tap to select */}
                         <div
                           className="flex-1 min-w-0 cursor-pointer"
                           onClick={() => { onSelect(customer); handleClose(); }}
@@ -271,15 +222,12 @@ export default function Customers({ open, onOpenChange, selectedCustomer, onSele
                           )}
                         </div>
 
-                        {/* Edit + Delete + selected check */}
                         <div className="flex flex-col items-end gap-2 shrink-0">
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={(e) => { e.stopPropagation(); openEdit(customer); }}
                               className="cursor-pointer size-8 rounded-full flex items-center justify-center transition-all"
                               style={{ background: "#eef0f3" }}
-                              onMouseEnter={(e) => (e.currentTarget.style.background = "#dee1e6")}
-                              onMouseLeave={(e) => (e.currentTarget.style.background = "#eef0f3")}
                               title="Edit"
                             >
                               <Pencil className="size-3.5" style={{ color: "#5b616e" }} />
@@ -288,8 +236,6 @@ export default function Customers({ open, onOpenChange, selectedCustomer, onSele
                               onClick={(e) => { e.stopPropagation(); handleDelete(customer); }}
                               className="cursor-pointer size-8 rounded-full flex items-center justify-center transition-all"
                               style={{ background: "#fff0f0" }}
-                              onMouseEnter={(e) => (e.currentTarget.style.background = "#ffd5d5")}
-                              onMouseLeave={(e) => (e.currentTarget.style.background = "#fff0f0")}
                               title="Delete"
                             >
                               <Trash2 className="size-3.5" style={{ color: "#e03" }} />
@@ -306,7 +252,6 @@ export default function Customers({ open, onOpenChange, selectedCustomer, onSele
                   );
                 })}
 
-                {/* Infinite scroll sentinel */}
                 <div ref={sentinelRef} className="py-2 flex justify-center">
                   {loadingMore && (
                     <div className="flex items-center gap-2 text-[13px] text-[#7c828a]">
@@ -314,7 +259,7 @@ export default function Customers({ open, onOpenChange, selectedCustomer, onSele
                       Loading more...
                     </div>
                   )}
-                  {!hasMore && items.length > PAGE_SIZE && (
+                  {!hasMore && items.length > CUSTOMER_PAGE_SIZE && (
                     <p className="text-[12px] text-[#a8acb3]">All {items.length} customers loaded</p>
                   )}
                 </div>
@@ -324,8 +269,7 @@ export default function Customers({ open, onOpenChange, selectedCustomer, onSele
         </>
       )}
 
-      {/* Loading overlay */}
-      {actionLoading && (
+      {actionLoading && view === "list" && (
         <div className="absolute inset-0 z-50 bg-white/50 backdrop-blur-[2px] flex items-center justify-center">
           <Loader2 className="size-8 animate-spin text-[#0052ff]" />
         </div>

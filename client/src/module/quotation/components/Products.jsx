@@ -1,10 +1,11 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { Search, Plus, Minus, Pencil, Trash2, PackageSearch, Loader2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { Search, Plus, Minus, Pencil, Trash2, PackageSearch, Loader2, ExternalLink } from "lucide-react";
 
 import ProductForm from "../../product/components/ProductForm";
 import { productApi } from "../../../api/product.api";
-import useCompanyStore from "../../../store/company.store";
 import { BottomDrawer, safeAreaBottom } from "@/components/ui/bottom-drawer";
+import { useProductList, PRODUCT_PAGE_SIZE } from "../../product/hooks/useProductList";
 import {
   getProductPrice,
   getProductTaxRate,
@@ -12,89 +13,30 @@ import {
   stripProductApiPayload,
 } from "@/lib/productUtils";
 
-const PAGE_SIZE = 20;
-
 export default function Products({ open, onOpenChange, selectedProducts, onProductsChange }) {
-  const [search, setSearch] = useState("");
+  const navigate = useNavigate();
   const [view, setView] = useState("list");
   const [editProduct, setEditProduct] = useState(null);
-
-  // pagination state
-  const [items, setItems] = useState([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const sentinelRef = useRef(null);
-  const searchDebounceRef = useRef(null);
-  const companyId = useCompanyStore((state) => state.activeCompany?._id);
+  const {
+    companyId,
+    search,
+    setSearch,
+    items,
+    setItems,
+    loading,
+    loadingMore,
+    sentinelRef,
+    hasMore,
+  } = useProductList({ enabled: open });
 
-  // ── Fetch a specific page ──────────────────────────────────────
-  const fetchPage = useCallback(async (pageNum, searchTerm, replace = false) => {
-    if (!companyId) return;
-    if (replace) setLoading(true); else setLoadingMore(true);
-    try {
-      const res = await productApi.getProducts(companyId, { page: pageNum, limit: PAGE_SIZE, search: searchTerm });
-      const data = res.data?.data;
-      setItems((prev) => replace ? (data?.items || []) : [...prev, ...(data?.items || [])]);
-      setPage(data?.page ?? pageNum);
-      setTotalPages(data?.totalPages ?? 1);
-    } catch (err) {
-      console.error("Failed to fetch products", err);
-    } finally {
-      if (replace) setLoading(false); else setLoadingMore(false);
-    }
-  }, [companyId]);
-
-  // Re-fetch from page 1 when drawer opens
-  useEffect(() => {
-    if (open) {
-      setSearch("");
-      setItems([]);
-      setPage(1);
-      fetchPage(1, "", true);
-    }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Debounced search → fetch from page 1
-  useEffect(() => {
-    clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => {
-      setItems([]);
-      setPage(1);
-      fetchPage(1, search, true);
-    }, 350);
-    return () => clearTimeout(searchDebounceRef.current);
-  }, [search, fetchPage]);
-
-  // IntersectionObserver — load next page when sentinel enters viewport
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !loading && !loadingMore && page < totalPages) {
-          const nextPage = page + 1;
-          setPage(nextPage);
-          fetchPage(nextPage, search);
-        }
-      },
-      { threshold: 0.1 }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [loading, loadingMore, page, totalPages, search, fetchPage]);
-
-  // ── Quantities map from selected products ─────────────────────
   const quantities = useMemo(() => {
     const map = {};
     selectedProducts.forEach((p) => { map[p._id || p.id] = p.qty; });
     return map;
   }, [selectedProducts]);
 
-  // ── Handlers ──────────────────────────────────────────────────
   const updateQty = (product, delta) => {
     const pid = product._id || product.id;
     const current = quantities[pid] || 0;
@@ -174,18 +116,26 @@ export default function Products({ open, onOpenChange, selectedProducts, onProdu
     }
   };
 
-  const hasMore = page < totalPages;
+  const goManage = () => {
+    onOpenChange(false);
+    navigate("/products");
+  };
 
   return (
     <BottomDrawer open={open} onOpenChange={handleClose}>
       {view === "list" && (
         <>
-          {/* Header */}
           <div className="flex items-center justify-between px-5 pt-2 pb-3 shrink-0" style={{ borderBottom: "1px solid #dee1e6" }}>
             <h2 className="text-[16px] font-semibold" style={{ color: "#0a0b0d" }}>Search Products</h2>
+            <button
+              type="button"
+              onClick={goManage}
+              className="cursor-pointer flex items-center gap-1 text-[13px] font-semibold text-[#0052ff]"
+            >
+              Manage <ExternalLink className="size-3.5" />
+            </button>
           </div>
 
-          {/* Search */}
           <div className="px-5 py-4 shrink-0">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4" style={{ color: "#5b616e" }} />
@@ -199,7 +149,6 @@ export default function Products({ open, onOpenChange, selectedProducts, onProdu
             </div>
           </div>
 
-          {/* Add product CTA */}
           <div className="px-5 pb-3 shrink-0">
             <button
               onClick={() => setView("add")}
@@ -215,7 +164,6 @@ export default function Products({ open, onOpenChange, selectedProducts, onProdu
             </button>
           </div>
 
-          {/* List */}
           <div className="flex-1 overflow-y-auto px-5 pb-5 flex flex-col gap-2">
             {loading ? (
               <div className="flex flex-col items-center justify-center py-16 gap-2">
@@ -228,6 +176,13 @@ export default function Products({ open, onOpenChange, selectedProducts, onProdu
                 <p className="text-[14px] font-medium" style={{ color: "#5b616e" }}>
                   {search ? "No products found" : "No products yet"}
                 </p>
+                <button
+                  type="button"
+                  onClick={goManage}
+                  className="cursor-pointer mt-4 text-[13px] font-semibold text-[#0052ff]"
+                >
+                  Manage products
+                </button>
               </div>
             ) : (
               <>
@@ -304,7 +259,6 @@ export default function Products({ open, onOpenChange, selectedProducts, onProdu
                   );
                 })}
 
-                {/* Infinite scroll sentinel */}
                 <div ref={sentinelRef} className="py-2 flex justify-center">
                   {loadingMore && (
                     <div className="flex items-center gap-2 text-[13px] text-[#7c828a]">
@@ -312,7 +266,7 @@ export default function Products({ open, onOpenChange, selectedProducts, onProdu
                       Loading more...
                     </div>
                   )}
-                  {!hasMore && items.length > PAGE_SIZE && (
+                  {!hasMore && items.length > PRODUCT_PAGE_SIZE && (
                     <p className="text-[12px] text-[#a8acb3]">All {items.length} products loaded</p>
                   )}
                 </div>

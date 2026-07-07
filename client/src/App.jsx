@@ -9,6 +9,11 @@ import ProtectedRoute from './module/auth/components/ProtectedRoute'
 // Home
 import HomePage from './module/home/pages/HomePage'
 
+// Master data
+import ProductListPage from './module/product/pages/ProductListPage'
+import CustomerListPage from './module/customer/pages/CustomerListPage'
+import BankListPage from './module/bank/pages/BankListPage'
+
 // Quotation
 import QuotationList from './module/quotation/pages/QuotationList'
 import CreateQuotation from './module/quotation/pages/CreateQuotation'
@@ -44,6 +49,15 @@ const App = () => {
         } />
         <Route path="/quotation/:id" element={
           <ProtectedRoute><QuotationView /></ProtectedRoute>
+        } />
+        <Route path="/products" element={
+          <ProtectedRoute><ProductListPage /></ProtectedRoute>
+        } />
+        <Route path="/customers" element={
+          <ProtectedRoute><CustomerListPage /></ProtectedRoute>
+        } />
+        <Route path="/banks" element={
+          <ProtectedRoute><BankListPage /></ProtectedRoute>
         } />
 
 
